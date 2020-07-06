@@ -227,7 +227,7 @@ end
 
 close all
   
-%% Regression 2 Polyfit
+%% Regression 2 Polyfitkndf
 
 coeff = []; correct = [];
 for i = 1:numObjects
