@@ -121,21 +121,20 @@ angle = angle1(bnw, ExcCoupee)
 % Preprocessing the image to isolate the rays
 
 %opening
-figure
-imagesc(EmWaveLength1, ExcCoupee, bnw)
-set(gca,'YDir','normal')
-se = strel('line', 7, angle);               %Here, just angle has to be precise, the size 7 can be different
 
-bnw = imopen(bnw,se);
 
 % Average filtering
 kernel = 1/4*[1 1 ;1 1 ]
 bnw = imfilter(bnw, kernel);
+
+se = strel('line', 7, angle);               %Here, just angle has to be precise, the size 7 can be different
+
+bnw = imopen(bnw,se);
 figure
 imagesc(EmWaveLength1, ExcCoupee, bnw)
 set(gca,'YDir','normal')
 title('Final processing')
-
+pause
 % We count the number of rays and initiallize coeff and correct as empty
 
 CC = bwconncomp(bnw);
@@ -151,17 +150,17 @@ numObjects = CC.NumObjects
 for i = 1:CC.NumObjects
     bn(:,:,i) = bwpropfilt(logical(bnw),'perimeter',1);
     bnw = bnw - bn(:,:,i);
-    %  figure
-    %  imagesc(EmWaveLength1, ExcWaveLength1, bn(:,:,i))
+     figure
+     imagesc(EmWaveLength1, ExcWaveLength1, bn(:,:,i))
+         set(gca,'YDir','normal')
     [data(:,:,i) corr] = findcenterpixel(bn(:,:,i));
     correct = [correct; corr corr];
-    % figure
-    % imagesc(EmWaveLength1, ExcCoupee, data(:,:,i))
-    % 
-    % set(gca,'YDir','normal')
-    % figure
-    % plot(donnees(:,:,i));
+    figure
+    imagesc(EmWaveLength1, ExcCoupee, data(:,:,i))
     
+    set(gca,'YDir','normal')
+%     figure
+%     plot(donnees(:,:,i));
 x = []; y = [];
 for k = 1:size(data(:,:,i),1)
     for L = 1:size(data(:,:,i),2)
@@ -171,20 +170,23 @@ for k = 1:size(data(:,:,i),1)
         end
     end
 end
-y = y';
+% y = y';
 % p = polyfit(x,y,2);
 % coeff = [coeff;(polyfit(x,y,2))];
-% %y1 = polyval(p,EmWaveLength1);
-% %plot(x,y);
-
-pModel = fitrsvm(x',y','KernelFunction', 'polynomial','PolynomialOrder',2,'KernelScale','auto','Standardize',true)
-pModel.ModelParameters
-y1 = predict(pModel,EmWaveLength1')
+% y1 = polyval(p,EmWaveLength1);
+% plot(x,y);
+% error = rmse(y',y1(1:size(y)))
+% pause
+tic
+pModel = fitrsvm(x',y','KernelFunction', 'polynomial','PolynomialOrder',2,'KernelScale','auto','Standardize',true,'OptimizeHyperparameters','auto',...
+    'HyperparameterOptimizationOptions',struct('AcquisitionFunctionName',...
+    'expected-improvement-plus'))
+y1 = predict(pModel,EmWaveLength1');
 y2 = predict(pModel, x');
-error = rmse(y, y2)
+error = rmse(y', y2(1:size(y)))
 coeff = [coeff ; polyfit(EmWaveLength1,y1,2)]
 plot (EmWaveLength1,y1)
-pause
+toc
 end
 
 close all
@@ -209,7 +211,9 @@ I = imagesc(EmWaveLength1, ExcCoupee, 10*log10(average));
 set(gca,'YDir','normal')
 title(['Choose points on the ', num2str(i), 'th biggest rays for regression. Press enter to validate'])
 [X Y] = getpts;
-pModel = fitrsvm(X,Y,'KernelFunction', 'polynomial','PolynomialOrder',2,'KernelScale','auto','Standardize',true)
+pModel = fitrsvm(X,Y,'KernelFunction', 'polynomial','PolynomialOrder',2,'KernelScale','auto','Standardize',true,'OptimizeHyperparameters','auto',...
+    'HyperparameterOptimizationOptions',struct('AcquisitionFunctionName',...
+    'expected-improvement-plus'))
 pModel.ModelParameters
 y1 = predict(pModel,EmWaveLength1');
 coeff = [coeff ; polyfit(EmWaveLength1,y1,2)];
@@ -282,7 +286,7 @@ end
 
 close all
   
-%% Extra Regression 1 Polyfit
+%% Extra Regression 1 Polyfit g
 
 coeff = []; correct = [];
 for i = 1:numObjects
